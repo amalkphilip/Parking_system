@@ -170,4 +170,5 @@ public class SlotController {
             return false;
         }
     }
+
 }
