@@ -1,0 +1,163 @@
+import controller.SlotController;
+import model.Slot;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+
+public class UserDashboardFrame extends JFrame {
+    private JTextArea output;
+    private JLabel statusLabel;
+    private String username;
+
+    public UserDashboardFrame(String username) {
+        this.username = username;
+        setTitle("User Dashboard - Parking System");
+        setSize(800, 500);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        getContentPane().setBackground(Color.WHITE);
+
+        initializeUI();
+        refreshData();
+        setVisible(true);
+    }
+
+    private void initializeUI() {
+        // Header
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(0, 102, 204));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        
+        JLabel titleLabel = new JLabel("Welcome, " + username + "!");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setForeground(Color.WHITE);
+        
+        statusLabel = new JLabel("Loading...");
+        statusLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        statusLabel.setForeground(Color.WHITE);
+        
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(statusLabel, BorderLayout.EAST);
+
+        // Button panel
+        JPanel buttonPanel = createButtonPanel();
+
+        // Output area
+        output = new JTextArea();
+        output.setFont(new Font("Consolas", Font.PLAIN, 14));
+        output.setEditable(false);
+        output.setBackground(new Color(248, 248, 248));
+        output.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        JScrollPane scrollPane = new JScrollPane(output);
+        scrollPane.setBorder(BorderFactory.createTitledBorder("Available Parking Slots"));
+
+        // Layout
+        setLayout(new BorderLayout(10, 10));
+        add(headerPanel, BorderLayout.NORTH);
+        add(buttonPanel, BorderLayout.WEST);
+        add(scrollPane, BorderLayout.CENTER);
+    }
+
+    private JPanel createButtonPanel() {
+        JPanel panel = new JPanel(new GridLayout(0, 1, 5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.setBackground(Color.WHITE);
+
+        String[] buttonLabels = {"Book Slot", "Search Slot", "Refresh", "Logout"};
+
+        for (String label : buttonLabels) {
+            JButton btn = new JButton(label);
+            btn.setFocusPainted(false);
+            btn.setFont(new Font("Arial", Font.BOLD, 12));
+            btn.setPreferredSize(new Dimension(150, 35));
+
+            switch (label) {
+                case "Book Slot": 
+                    btn.setBackground(Color.GREEN);
+                    btn.addActionListener(e -> bookSlot()); 
+                    break;
+                case "Search Slot": 
+                    btn.setBackground(Color.ORANGE);
+                    btn.addActionListener(e -> searchSlot()); 
+                    break;
+                case "Refresh": 
+                    btn.setBackground(Color.BLUE);
+                    btn.addActionListener(e -> refreshData()); 
+                    break;
+                case "Logout": 
+                    btn.setBackground(Color.GRAY);
+                    btn.addActionListener(e -> logout()); 
+                    break;
+            }
+            btn.setForeground(Color.WHITE);
+            panel.add(btn);
+        }
+
+        return panel;
+    }
+
+    private void bookSlot() {
+        try {
+            String idStr = JOptionPane.showInputDialog(this, "Enter Slot ID to Book:", "Book Slot", JOptionPane.QUESTION_MESSAGE);
+            if (idStr == null) return;
+
+            int id = Integer.parseInt(idStr);
+            Slot slot = SlotController.getSlotById(id);
+            System.out.println("Attempting to book slot: " + id + ", status: " + slot.getStatus());
+
+            if (slot != null && slot.getStatus().equals("Empty")) {
+                PaymentFrame paymentFrame = new PaymentFrame(this, slot, username);
+                paymentFrame.setVisible(true);
+                refreshData();
+            } else {
+                showMessage("Slot " + id + " not available or already booked!", "Cannot Book");
+            }
+        } catch (NumberFormatException ex) {
+            showMessage("Please enter a valid slot ID number!", "Invalid Input");
+        }
+    }
+
+    private void searchSlot() {
+        String[] types = {"2W", "4W"};
+        String type = (String) JOptionPane.showInputDialog(this, 
+            "Select Vehicle Type to Search:", "Search Slot", 
+            JOptionPane.QUESTION_MESSAGE, null, types, types[0]);
+
+        if (type != null) {
+            List<Slot> slots = SlotController.getSlotsByType(type);
+            if (slots.isEmpty()) {
+                output.setText("No slots found for type: " + type);
+            } else {
+                StringBuilder sb = new StringBuilder();
+                sb.append("=== Slots for Type: ").append(type).append(" ===\n\n");
+                for (Slot s : slots) {
+                    sb.append(s).append("\n");
+                }
+                output.setText(sb.toString());
+            }
+        }
+    }
+
+    public void refreshData() {
+        SlotController.loadSlotsFromDB();
+        output.setText(SlotController.getSlotsSummary());
+        statusLabel.setText("Last updated: " + new java.util.Date());
+    }
+
+    private void logout() {
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "Are you sure you want to logout?", "Confirm Logout", 
+            JOptionPane.YES_NO_OPTION);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            dispose();
+            new LoginFrame();
+        }
+    }
+
+    private void showMessage(String message, String title) {
+        JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE);
+    }
+}
